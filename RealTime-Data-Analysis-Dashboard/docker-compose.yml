@@ -1,0 +1,6 @@
+﻿services:
+  realtime-data-analysis-dashboard:
+    image: realtime-data-analysis-dashboard
+    build:
+      context: .
+      dockerfile: Dockerfile

@@ -39,7 +39,7 @@ public class TweetService
     }
     
     // A very basic keyword occurence graph
-    public Dictionary<string, Dictionary<string, int>> BuildKeywordGraph(List<Tweet> tweets)
+    public Dictionary<string, Dictionary<string, int>> BuildKeywordGraph(IEnumerable<Tweet> tweets)
     {
         var keywordGraph = new Dictionary<string, Dictionary<string, int>>();
 
@@ -51,11 +51,6 @@ public class TweetService
             {
                 var keyword1 = keywords[i];
                 
-                if (!keywordGraph.ContainsKey(keyword1))
-                {
-                    keywordGraph[keyword1] = new Dictionary<string, int>();
-                }
-                
                 for (var j = i + 1; j < keywords.Count; j++)
                 {
                     var keyword2 = keywords[j];
@@ -63,6 +58,11 @@ public class TweetService
                     if (String.CompareOrdinal(keyword1, keyword2) > 0)
                     {
                         (keyword1, keyword2) = (keyword2, keyword1);
+                    }
+                    
+                    if (!keywordGraph.ContainsKey(keyword1))
+                    {
+                        keywordGraph[keyword1] = new Dictionary<string, int>();
                     }
                     
                     if (keywordGraph[keyword1].ContainsKey(keyword2))

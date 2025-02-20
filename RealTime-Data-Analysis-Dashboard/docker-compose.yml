@@ -4,3 +4,15 @@
     build:
       context: .
       dockerfile: Dockerfile
+
+  dashboard:
+    image: dashboard
+    build:
+      context: .
+      dockerfile: DashBoard/Dockerfile
+
+  dashboard-1:
+    image: dashboard-1
+    build:
+      context: .
+      dockerfile: ../Dashboard/Dockerfile

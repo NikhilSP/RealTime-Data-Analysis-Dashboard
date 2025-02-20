@@ -1,7 +1,37 @@
 @page "/dashboard"
+@using System.Text.Json
 
 <h3>DashBoard</h3>
 
+@foreach (var tweet in tweets)
+{
+    <p>
+        <b>@tweet.text</b>
+    </p>
+}
+
 @code {
+    public class TweetData
+    {
+        public string text { get; set; }
+        public int id { get; set; } 
+    }
     
+    string API_URL = "http://localhost:5015/";
+
+    private IEnumerable<TweetData> tweets = [];
+
+    private async Task refreshTweets()
+    {
+        var httpClient = new HttpClient();
+        HttpResponseMessage response = await httpClient.GetAsync(API_URL + "api/Tweet/getTweets");
+        httpClient.Dispose();
+        using var responseStream = await response.Content.ReadAsStreamAsync();
+        tweets = await JsonSerializer.DeserializeAsync<IEnumerable<TweetData>>(responseStream);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await this.refreshTweets();
+    }
 }

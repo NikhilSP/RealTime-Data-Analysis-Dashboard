@@ -12,7 +12,9 @@ public class Program
         builder.Services.AddOpenApi();
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddScoped<TweetService>();
+       // builder.Services.AddScoped<TweetService>();
+       builder.Services.AddScoped<CoinGeckoService>();
+       builder.Services.AddHttpClient();
         
         var app = builder.Build();
 

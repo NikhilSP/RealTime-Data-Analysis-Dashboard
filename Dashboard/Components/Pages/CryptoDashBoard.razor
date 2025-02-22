@@ -1,0 +1,51 @@
+@page "/cryptodashboard"
+@using System.Text.Json
+
+<h3>Real-Time Bitcoin Price Dashboard</h3>
+
+<p>Current Bitcoin Price (USD): <b>$ @realTimeValue</b></p>
+
+@code {
+
+    public class CoinPriceData
+    {
+        public double Price { get; set; }
+    }
+
+    string API_URL = "http://localhost:5015/";
+    string BITCOIN_PRICE_ENDPOINT = "api/CoinGecko/getBitcoinPrice";
+
+    private double realTimeValue = 0.0;
+
+    private async Task refreshPrice()
+    {
+        var httpClient = new HttpClient();
+        try
+        {
+            HttpResponseMessage response = await httpClient.GetAsync(API_URL + BITCOIN_PRICE_ENDPOINT);
+            if (response.IsSuccessStatusCode)
+            {
+                using var responseStream = await response.Content.ReadAsStreamAsync();
+                realTimeValue = await JsonSerializer.DeserializeAsync<double>(responseStream);
+            }
+            else
+            {
+                Console.WriteLine($"API request failed: {response.StatusCode}");
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"HTTP Request Exception: {ex.Message}");
+        }
+        finally
+        {
+            httpClient.Dispose();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await this.refreshPrice();
+    }
+
+}

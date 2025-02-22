@@ -1,23 +1,64 @@
 @page "/cryptodashboard"
 @using System.Text.Json
+@implements IDisposable
+@rendermode InteractiveServer
+
 
 <h3>Real-Time Bitcoin Price Dashboard</h3>
 
-<p>Current Bitcoin Price (USD): <b>$ @realTimeValue</b></p>
+<p>Current Bitcoin Price (USD): <b>$ @string.Format("{0:F2}", realTimeValue)</b></p>
+
+<canvas id="bitcoinPriceChart"></canvas>
+
+<script>
+    var chart;
+
+    // Updated function to include canvasId parameter
+    function createBitcoinPriceChart(canvasId, timeLabels, priceDataPoints) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Bitcoin Price (USD)',
+                    data: priceDataPoints,
+                    borderColor: 'rgb(255, 99, 132)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            }
+        });
+    }
+
+    function updateBitcoinPriceChart(timeLabels, priceDataPoints) {
+        if (chart) {
+            chart.data.labels = timeLabels;
+            chart.data.datasets[0].data = priceDataPoints;
+            chart.update();
+        }
+    }
+</script>
 
 @code {
-
-    public class CoinPriceData
-    {
-        public double Price { get; set; }
-    }
+    [Inject] private IJSRuntime JsRuntime { get; set; }
 
     string API_URL = "http://localhost:5015/";
     string BITCOIN_PRICE_ENDPOINT = "api/CoinGecko/getBitcoinPrice";
 
     private double realTimeValue = 0.0;
+    private List<double> priceDataPoints = new List<double>();
+    private List<string> timeLabels = new List<string>();
+    private Timer _timer; // Declare Timer
+    private static bool _isChartInitialized = false;
 
-    private async Task refreshPrice()
+    private async Task refreshValue()
     {
         var httpClient = new HttpClient();
         try
@@ -26,7 +67,31 @@
             if (response.IsSuccessStatusCode)
             {
                 using var responseStream = await response.Content.ReadAsStreamAsync();
-                realTimeValue = await JsonSerializer.DeserializeAsync<double>(responseStream);
+                double? price = await JsonSerializer.DeserializeAsync<double?>(responseStream);
+
+                if (price.HasValue)
+                {
+                    realTimeValue = price.Value;
+
+                    priceDataPoints.Add(realTimeValue);
+                    timeLabels.Add(DateTime.Now.ToString("HH:mm:ss"));
+
+                    if (priceDataPoints.Count > 60)
+                    {
+                        priceDataPoints.RemoveAt(0);
+                        timeLabels.RemoveAt(0);
+                    }
+
+                    if (_isChartInitialized)
+                    {
+                        await UpdateChart();
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Deserialization returned null price.");
+                    realTimeValue = 0.0;
+                }
             }
             else
             {
@@ -41,11 +106,43 @@
         {
             httpClient.Dispose();
         }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task UpdateChart()
+    {
+        await JsRuntime.InvokeVoidAsync("updateBitcoinPriceChart", timeLabels.ToArray(), priceDataPoints.ToArray());
     }
 
     protected override async Task OnInitializedAsync()
     {
-        await this.refreshPrice();
+        await refreshValue();
+
+        _timer = new Timer(async _ =>
+        {
+            await refreshValue();
+            await InvokeAsync(() => this.StateHasChanged());
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(10));
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CreateChart(); // Create the chart on initial render
+            _isChartInitialized = true; // Mark chart as initialized
+        }
+    }
+
+    private async Task CreateChart()
+    {
+        // Call JavaScript with the canvas ID and data arrays
+        await JsRuntime.InvokeVoidAsync("createBitcoinPriceChart", "bitcoinPriceChart", timeLabels.ToArray(), priceDataPoints.ToArray());
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
 }
